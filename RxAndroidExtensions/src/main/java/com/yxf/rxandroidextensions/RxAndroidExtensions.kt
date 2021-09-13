@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import androidx.fragment.app.Fragment
 
 import androidx.fragment.app.FragmentActivity
 import com.yxf.rxandroidextensions.activity.ActivityResult
@@ -104,6 +105,34 @@ fun FragmentActivity.rxRequestInstallPackagesPermission(): Observable<Boolean> {
         return@map it.isOk
     }
 }
+
+fun Fragment.rxRequestSinglePermission(
+    permission: String,
+    requestCode: Int = Ex.AUTOMATIC_REQUEST_CODE
+): Observable<Boolean> {
+    return requireActivity().rxRequestSinglePermission(permission, requestCode)
+}
+
+
+fun Fragment.rxRequestPermissions(
+    permissions: Array<out String>,
+    requestCode: Int = Ex.AUTOMATIC_REQUEST_CODE
+): Observable<PermissionResult> {
+    return requireActivity().rxRequestPermissions(permissions, requestCode)
+}
+
+fun Fragment.rxStartActivityForResult(
+    intent: Intent,
+    options: Bundle? = null,
+    requestCode: Int = Ex.AUTOMATIC_REQUEST_CODE
+): Observable<ActivityResult> {
+    return requireActivity().rxStartActivityForResult(intent, options, requestCode)
+}
+
+fun Fragment.rxRequestInstallPackagesPermission(): Observable<Boolean> {
+    return requireActivity().rxRequestInstallPackagesPermission()
+}
+
 
 
 
