@@ -1,0 +1,3 @@
+rootProject.name = "RxAndroidExtensions"
+include ':app'
+include ':RxAndroidExtensions'
