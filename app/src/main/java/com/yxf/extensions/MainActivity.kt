@@ -2,11 +2,17 @@ package com.yxf.extensions
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Intent
+import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.provider.Settings
 import android.util.Log
+import androidx.fragment.app.FragmentActivity
 import com.yxf.rxandroidextensions.rxRequestInstallPackagesPermission
 import com.yxf.rxandroidextensions.rxRequestPermissions
+import com.yxf.rxandroidextensions.rxRequestSinglePermission
+import com.yxf.rxandroidextensions.rxStartActivityForResult
 
 class MainActivity : AppCompatActivity() {
 
@@ -18,13 +24,13 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         rxRequestInstallPackagesPermission().subscribe {
             Log.d(TAG, "request packages permission result : $it")
-            requestPermission()
+            requestPermissions(this)
         }
     }
 
     @SuppressLint("CheckResult")
-    private fun requestPermission() {
-        rxRequestPermissions(
+    private fun requestPermissions(activity: FragmentActivity) {
+        activity.rxRequestPermissions(
             arrayOf(
                 Manifest.permission.READ_PHONE_STATE,
                 Manifest.permission.WRITE_EXTERNAL_STORAGE,
@@ -55,5 +61,43 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+
+    @SuppressLint("CheckResult")
+    private fun requestSinglePermission(activity: FragmentActivity) {
+        activity.rxRequestSinglePermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            .subscribe {
+                if (it) {
+                    Log.d(TAG, "request write external storage successfully")
+                } else {
+                    Log.e(TAG, "request write external storage failed")
+                }
+            }
+    }
+
+    private fun requestInstallPackagesFromUnknownSources(activity: FragmentActivity) {
+        activity.rxRequestInstallPackagesPermission()
+            .subscribe {
+                if (it) {
+                    Log.d(TAG, "request install packages from unknown packages successfully")
+                } else {
+                    Log.e(TAG, "request install packages failed")
+                }
+            }
+    }
+
+    private fun startActivityForResult(activity: FragmentActivity) {
+        val uri = Uri.parse("package:$packageName")
+        activity.rxStartActivityForResult(Intent(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, uri)))
+            .subscribe {
+                if (it.isOk) {
+                    val intent = it.data
+                    Log.d(TAG, "get activity result successfully")
+
+                } else {
+                    Log.e(TAG, "get activity result successfully but the result is false")
+                }
+            }
     }
 }
