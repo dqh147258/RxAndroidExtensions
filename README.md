@@ -93,9 +93,9 @@ Request install install packages from unknown sources
         activity.rxRequestInstallPackagesPermission()
             .subscribe {
                 if (it) {
-                    Log.d(TAG, "request install packages from unknown packages successfully")
+                    Log.d(TAG, "request install packages from unknown sources successfully")
                 } else {
-                    Log.e(TAG, "request install packages failed")
+                    Log.e(TAG, "request install packages from unknown sources failed")
                 }
             }
     }
