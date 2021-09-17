@@ -1,6 +1,6 @@
 # RxAndroidExtensions
 
-RxJava Android Extension
+RxJava Android Extensions
 
 [![](https://www.jitpack.io/v/dqh147258/RxAndroidExtensions.svg)](https://www.jitpack.io/#dqh147258/RxAndroidExtensions)
 
@@ -87,7 +87,7 @@ Request Multi-Permissions
     }
 ```
 
-Request install install packages from unknown sources
+Request install packages from unknown sources
 ```kotlin
     private fun requestInstallPackagesFromUnknownSources(activity: FragmentActivity) {
         activity.rxRequestInstallPackagesPermission()
