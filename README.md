@@ -9,7 +9,7 @@ RxJava Android Extensions
 ### Activity 
 - Request permissions with Observable
 - Request ActivityResult with Observable
-- Request install install packages from unknown sources with Observable
+- Request install packages from unknown sources with Observable
 
 More features are in developing...
 
