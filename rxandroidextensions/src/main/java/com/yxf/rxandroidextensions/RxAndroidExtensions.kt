@@ -1,11 +1,13 @@
 package com.yxf.rxandroidextensions
 
+import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
 
 import androidx.fragment.app.FragmentActivity
@@ -56,10 +58,19 @@ private fun getFragment(activity: FragmentActivity): RxAndroidExtensionsFragment
         }
 }
 
+internal fun isPermissionGranted(activity: Activity, permission: String) =
+    ActivityCompat.checkSelfPermission(
+        activity,
+        permission
+    ) == PackageManager.PERMISSION_GRANTED
+
 fun FragmentActivity.rxRequestSinglePermission(
     permission: String,
     requestCode: Int = Ex.AUTOMATIC_REQUEST_CODE
 ): Observable<Boolean> {
+    if (isPermissionGranted(this, permission)) {
+        return Observable.just(true)
+    }
     return rxRequestPermissions(arrayOf(permission), requestCode)
         .map {
             return@map it.grantResults[0] == PackageManager.PERMISSION_GRANTED

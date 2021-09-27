@@ -3,6 +3,8 @@ package com.yxf.rxandroidextensions.activity
 import android.app.Activity
 import android.content.pm.PackageManager
 import android.os.Build
+import androidx.core.app.ActivityCompat
+import com.yxf.rxandroidextensions.isPermissionGranted
 
 class PermissionResult(
     val requestCode: Int,
@@ -12,6 +14,18 @@ class PermissionResult(
 
     private var internalGrantPermissionList: ArrayList<String>? = null
     private var internalDeniedPermissionList: ArrayList<String>? = null
+
+    companion object {
+        public fun isDeniedForever(permission: String, activity: Activity): Boolean {
+            val result = isPermissionGranted(activity, permission)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !result
+                && !activity.shouldShowRequestPermissionRationale(permission)
+            ) {
+                return true
+            }
+            return false
+        }
+    }
 
     val resultMap by lazy {
         return@lazy HashMap<String, Boolean>().apply {
@@ -35,16 +49,8 @@ class PermissionResult(
     }
 
     public fun isDeniedForever(permission: String, activity: Activity): Boolean {
-        val result = resultMap[permission]
-            ?: true // if permission not exist in result map can not return right value
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !result
-            && !activity.shouldShowRequestPermissionRationale(permission)
-        ) {
-            return true
-        }
-        return false
+        return PermissionResult.isDeniedForever(permission, activity)
     }
-
 
     private fun classifyPermissions() {
         internalGrantPermissionList = ArrayList()

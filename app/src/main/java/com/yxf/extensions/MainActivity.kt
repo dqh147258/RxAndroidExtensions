@@ -9,11 +9,9 @@ import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
 import androidx.fragment.app.FragmentActivity
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleObserver
-import androidx.lifecycle.Observer
-import androidx.lifecycle.OnLifecycleEvent
+import androidx.lifecycle.*
 import com.yxf.rxandroidextensions.*
+import com.yxf.rxandroidextensions.activity.PermissionResult
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
@@ -34,6 +32,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    @SuppressLint("CheckResult")
     override fun onResume() {
         super.onResume()
         Log.d(TAG, "activity onResume")
@@ -97,10 +96,18 @@ class MainActivity : AppCompatActivity() {
                     Log.d(TAG, "request write external storage successfully")
                 } else {
                     Log.e(TAG, "request write external storage failed")
+                    if (PermissionResult.isDeniedForever(
+                            Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                            activity
+                        )
+                    ) {
+                        Log.e(TAG, "write external storage permission has been denied forever")
+                    }
                 }
             }
     }
 
+    @SuppressLint("CheckResult")
     private fun requestInstallPackagesFromUnknownSources(activity: FragmentActivity) {
         activity.rxRequestInstallPackagesPermission()
             .subscribe {
@@ -112,24 +119,45 @@ class MainActivity : AppCompatActivity() {
             }
     }
 
+    @SuppressLint("CheckResult")
     private fun startActivityForResult(activity: FragmentActivity) {
         val uri = Uri.parse("package:$packageName")
         activity.rxStartActivityForResult(
-            Intent(
-                Intent(
-                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                    uri
-                )
-            )
+            Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, uri)
         )
             .subscribe {
                 if (it.isOk) {
                     val intent = it.data
                     Log.d(TAG, "get activity result successfully")
-
                 } else {
                     Log.e(TAG, "get activity result successfully but the result is false")
                 }
             }
     }
+
+    @SuppressLint("CheckResult")
+    private fun automaticDispose(owner: LifecycleOwner) {
+        Observable.interval(0, 1, TimeUnit.SECONDS)
+            .observeOn(AndroidSchedulers.mainThread())
+            .disposeOnDestroy(owner)
+            .subscribe {
+                Log.d(TAG, "get interval value : $it")
+            }
+
+        Observable.interval(0, 1, TimeUnit.SECONDS)
+            .observeOn(AndroidSchedulers.mainThread())
+            .disposeOnPause(owner)
+            .subscribe {
+                Log.d(TAG, "get interval value : $it")
+            }
+
+        Observable.interval(0, 1, TimeUnit.SECONDS)
+            .observeOn(AndroidSchedulers.mainThread())
+            .disposeOnPauseAndDestroy(owner)
+            .subscribe {
+                Log.d(TAG, "get interval value : $it")
+            }
+    }
+
+
 }

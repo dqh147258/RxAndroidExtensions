@@ -11,6 +11,10 @@ RxJava Android Extensions
 - Request ActivityResult with Observable
 - Request install packages from unknown sources with Observable
 
+### Auto dispose
+- Dispose onDestroy by LifeCycleOwner
+- Dispose onPause by LifeCycleOwner
+
 More features are in developing...
 
 
@@ -46,6 +50,13 @@ Request Single Permission
                     Log.d(TAG, "request write external storage successfully")
                 } else {
                     Log.e(TAG, "request write external storage failed")
+                    if (PermissionResult.isDeniedForever(
+                            Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                            activity
+                        )
+                    ) {
+                        Log.e(TAG, "write external storage permission has been denied forever")
+                    }
                 }
             }
     }
@@ -117,6 +128,35 @@ Request install packages from unknown sources
             }
     }
 ```
+
+### Automatic dispose
+
+```kotlin
+    private fun automaticDispose(owner: LifecycleOwner) {
+        Observable.interval(0, 1, TimeUnit.SECONDS)
+            .observeOn(AndroidSchedulers.mainThread())
+            .disposeOnDestroy(owner)
+            .subscribe { 
+                Log.d(TAG, "get interval value : $it")
+            }
+
+        Observable.interval(0, 1, TimeUnit.SECONDS)
+            .observeOn(AndroidSchedulers.mainThread())
+            .disposeOnPause(owner)
+            .subscribe {
+                Log.d(TAG, "get interval value : $it")
+            }
+
+        Observable.interval(0, 1, TimeUnit.SECONDS)
+            .observeOn(AndroidSchedulers.mainThread())
+            .disposeOnPauseAndDestroy(owner)
+            .subscribe {
+                Log.d(TAG, "get interval value : $it")
+            }
+    }
+```
+
+
 
 
 
