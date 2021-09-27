@@ -2,6 +2,7 @@ package com.yxf.rxandroidextensions.activity
 
 import android.content.Intent
 import androidx.fragment.app.Fragment
+import io.reactivex.Observable
 import io.reactivex.subjects.PublishSubject
 import io.reactivex.subjects.Subject
 
@@ -30,8 +31,9 @@ class RxAndroidExtensionsFragment : Fragment() {
         subject.onNext(PermissionResult(requestCode, permissions, grantResults))
     }
 
-    fun <T> getSubject(id: Int): Subject<T> {
-        return requestMap[id]?.let { it as Subject<T> } ?: PublishSubject.create<T>()
-            .also { requestMap[id] = (it as Subject<Any>) }
+    fun <T> getObservable(id: Int): Observable<T> {
+        return (requestMap[id]?.let { it as Subject<T> } ?: PublishSubject.create<T>()
+            .also { requestMap[id] = (it as Subject<Any>) })
+            .doOnDispose { requestMap.remove(id) }
     }
 }

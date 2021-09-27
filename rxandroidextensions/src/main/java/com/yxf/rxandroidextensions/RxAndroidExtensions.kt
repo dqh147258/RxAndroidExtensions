@@ -85,9 +85,9 @@ fun FragmentActivity.rxRequestPermissions(
     val code = if (requestCode == Ex.AUTOMATIC_REQUEST_CODE) Ex.requestId() else requestCode
     val fragment = getFragment(this)
     return fragment.run {
-        val subject: Observable<PermissionResult> = getSubject(code)
+        val observable: Observable<PermissionResult> = getObservable(code)
         fragment.requestPermissions(permissions, code)
-        return@run subject
+        return@run observable
     }
 }
 
@@ -99,9 +99,9 @@ fun FragmentActivity.rxStartActivityForResult(
     val code = if (requestCode == Ex.AUTOMATIC_REQUEST_CODE) Ex.requestId() else requestCode
     val fragment = getFragment(this)
     return fragment.run {
-        val subject: Observable<ActivityResult> = getSubject(code)
+        val observable: Observable<ActivityResult> = getObservable(code)
         startActivityForResult(intent, code, options)
-        return@run subject
+        return@run observable
     }
 }
 
