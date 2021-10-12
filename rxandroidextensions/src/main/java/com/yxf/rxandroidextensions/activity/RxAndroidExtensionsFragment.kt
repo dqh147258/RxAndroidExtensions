@@ -6,7 +6,7 @@ import io.reactivex.Observable
 import io.reactivex.subjects.PublishSubject
 import io.reactivex.subjects.Subject
 
-class RxAndroidExtensionsFragment : Fragment() {
+internal class RxAndroidExtensionsFragment : Fragment() {
 
 
     private val requestMap = HashMap<Int, Subject<Any>>()

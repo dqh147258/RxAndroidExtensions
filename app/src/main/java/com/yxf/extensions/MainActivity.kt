@@ -30,6 +30,11 @@ class MainActivity : AppCompatActivity() {
             Log.d(TAG, "request packages permission result : $it")
             requestPermissions(this)
         }
+        Observable.timer(3, TimeUnit.SECONDS, AndroidSchedulers.mainThread())
+            .flatMap { registerLifeCycleEvent(Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_DESTROY, once = true) }
+            .subscribe {
+                Log.d(TAG, "get lifecycle event : $it")
+            }
     }
 
     @SuppressLint("CheckResult")

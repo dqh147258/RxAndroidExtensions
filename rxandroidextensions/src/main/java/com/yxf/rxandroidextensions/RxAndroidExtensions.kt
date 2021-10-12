@@ -11,11 +11,13 @@ import androidx.core.app.ActivityCompat
 import androidx.fragment.app.Fragment
 
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import com.yxf.rxandroidextensions.activity.ActivityResult
 import com.yxf.rxandroidextensions.activity.PermissionResult
 
 import com.yxf.rxandroidextensions.activity.RxAndroidExtensionsFragment
+import com.yxf.rxandroidextensions.lifecycle.ObservableAutoDispose
 import com.yxf.rxandroidextensions.lifecycle.ObservableLifeCycle
 import io.reactivex.Observable
 import io.reactivex.plugins.RxJavaPlugins
@@ -147,10 +149,14 @@ fun Fragment.rxRequestInstallPackagesPermission(): Observable<Boolean> {
     return requireActivity().rxRequestInstallPackagesPermission()
 }
 
+fun LifecycleOwner.registerLifeCycleEvent(vararg eventArray: Lifecycle.Event, once: Boolean = true): Observable<Lifecycle.Event> {
+    return RxJavaPlugins.onAssembly(ObservableLifeCycle(this, HashSet<Lifecycle.Event>().apply { addAll(eventArray) }, once))
+}
+
 
 fun <T> Observable<T>.disposeOnDestroy(owner: LifecycleOwner): Observable<T> {
     return RxJavaPlugins.onAssembly(
-        ObservableLifeCycle<T>(
+        ObservableAutoDispose<T>(
             this,
             owner.lifecycle,
             disposeOnDestroy = true
@@ -160,7 +166,7 @@ fun <T> Observable<T>.disposeOnDestroy(owner: LifecycleOwner): Observable<T> {
 
 fun <T> Observable<T>.disposeOnPause(owner: LifecycleOwner): Observable<T> {
     return RxJavaPlugins.onAssembly(
-        ObservableLifeCycle<T>(
+        ObservableAutoDispose<T>(
             this,
             owner.lifecycle,
             disposeOnPause = true
@@ -170,7 +176,7 @@ fun <T> Observable<T>.disposeOnPause(owner: LifecycleOwner): Observable<T> {
 
 fun <T> Observable<T>.disposeOnPauseAndDestroy(owner: LifecycleOwner): Observable<T> {
     return RxJavaPlugins.onAssembly(
-        ObservableLifeCycle<T>(
+        ObservableAutoDispose<T>(
             this,
             owner.lifecycle,
             disposeOnPause = true, disposeOnDestroy = true
