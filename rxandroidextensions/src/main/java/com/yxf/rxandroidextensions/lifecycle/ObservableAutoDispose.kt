@@ -1,8 +1,6 @@
 package com.yxf.rxandroidextensions.lifecycle
 
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleObserver
-import androidx.lifecycle.OnLifecycleEvent
+import androidx.lifecycle.*
 import io.reactivex.Observable
 import io.reactivex.ObservableSource
 import io.reactivex.Observer
@@ -10,49 +8,39 @@ import io.reactivex.disposables.Disposable
 import java.lang.ref.WeakReference
 
 internal class ObservableAutoDispose<T>(
-    private val source: ObservableSource<T>, lifecycle: Lifecycle,
+    private val source: ObservableSource<T>,
+    private val owner: LifecycleOwner,
     private val disposeOnPause: Boolean = false,
     private val disposeOnDestroy: Boolean = false
 ) : Observable<T>() {
 
-    private var lifecycle: Lifecycle? = null
-
-    init {
-        this.lifecycle = lifecycle
-    }
-
     override fun subscribeActual(observer: Observer<in T>) {
-        source.subscribe(SourceObserver(observer, lifecycle!!, disposeOnPause, disposeOnDestroy))
-        lifecycle = null
+        source.subscribe(SourceObserver(observer, owner, disposeOnPause, disposeOnDestroy))
     }
 
     private class SourceObserver<T>(
         private val downstream: Observer<in T>,
-        lifecycle: Lifecycle,
-        disposeOnPause: Boolean = false,
-        disposeOnDestroy: Boolean = false
-    ) :
-        Observer<T>, Disposable {
+        private val owner: LifecycleOwner,
+        private val disposeOnPause: Boolean = false,
+        private val disposeOnDestroy: Boolean = false
+    ) : Observer<T>, Disposable , LifecycleEventObserver{
 
 
-        private var upstream: Disposable? = null
-
-        private var disposed = false
-
+        private lateinit var upstream: Disposable
 
         init {
-            var disposableOnPause = if (disposeOnPause) this else null
-            var disposableOnDestroy = if (disposeOnDestroy) this else null
-            lifecycle.addObserver(DisposeObserver(disposableOnPause, disposableOnDestroy))
+            owner.lifecycle.addObserver(this)
         }
 
         override fun dispose() {
-            disposed = true
-            upstream?.dispose()
+            owner.lifecycle.removeObserver(this)
+            if (!upstream.isDisposed) {
+                upstream.dispose()
+            }
         }
 
         override fun isDisposed(): Boolean {
-            return disposed
+            return upstream.isDisposed
         }
 
         override fun onSubscribe(d: Disposable) {
@@ -73,30 +61,15 @@ internal class ObservableAutoDispose<T>(
             downstream.onComplete()
         }
 
-    }
-
-    private class DisposeObserver(pauseDisposable: Disposable?, destroyDisposable: Disposable?) :
-        LifecycleObserver {
-
-
-        private var pauseReference: WeakReference<Disposable>? = null
-        private var destroyReference: WeakReference<Disposable>? = null
-
-
-        init {
-            pauseDisposable?.let { pauseReference = WeakReference(it) }
-            destroyDisposable?.let { destroyReference = WeakReference(it) }
-        }
-
-
-        @OnLifecycleEvent(Lifecycle.Event.ON_PAUSE)
-        fun onPause() {
-            pauseReference?.get()?.run { if (!isDisposed) dispose() }
-        }
-
-        @OnLifecycleEvent(Lifecycle.Event.ON_DESTROY)
-        fun onDestroy() {
-            destroyReference?.get()?.run { if (!isDisposed) dispose() }
+        override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
+            if (event == Lifecycle.Event.ON_PAUSE && disposeOnPause) {
+                onComplete()
+                dispose()
+            }
+            if (event == Lifecycle.Event.ON_DESTROY && disposeOnDestroy) {
+                onComplete()
+                dispose()
+            }
         }
 
     }

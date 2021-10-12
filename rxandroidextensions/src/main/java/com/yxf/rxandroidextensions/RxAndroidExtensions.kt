@@ -158,7 +158,7 @@ fun <T> Observable<T>.disposeOnDestroy(owner: LifecycleOwner): Observable<T> {
     return RxJavaPlugins.onAssembly(
         ObservableAutoDispose<T>(
             this,
-            owner.lifecycle,
+            owner,
             disposeOnDestroy = true
         )
     )
@@ -168,7 +168,7 @@ fun <T> Observable<T>.disposeOnPause(owner: LifecycleOwner): Observable<T> {
     return RxJavaPlugins.onAssembly(
         ObservableAutoDispose<T>(
             this,
-            owner.lifecycle,
+            owner,
             disposeOnPause = true
         )
     )
@@ -178,7 +178,7 @@ fun <T> Observable<T>.disposeOnPauseAndDestroy(owner: LifecycleOwner): Observabl
     return RxJavaPlugins.onAssembly(
         ObservableAutoDispose<T>(
             this,
-            owner.lifecycle,
+            owner,
             disposeOnPause = true, disposeOnDestroy = true
         )
     )

@@ -35,21 +35,17 @@ class MainActivity : AppCompatActivity() {
             .subscribe {
                 Log.d(TAG, "get lifecycle event : $it")
             }
+        Observable.timer(4, TimeUnit.SECONDS, AndroidSchedulers.mainThread())
+            .flatMap { Observable.interval(2, 1, TimeUnit.SECONDS).disposeOnPause(this) }
+            .subscribe {
+                Log.d(TAG, "log subscribe interval value : $it")
+            }
     }
 
     @SuppressLint("CheckResult")
     override fun onResume() {
         super.onResume()
         Log.d(TAG, "activity onResume")
-        Observable.interval(2, 1, TimeUnit.SECONDS)
-            .map {
-                Log.d(TAG, "log map interval value : $it")
-                return@map it
-            }
-            .disposeOnPause(this)
-            .subscribe {
-                Log.d(TAG, "log subscribe interval value : $it")
-            }
     }
 
     override fun onPause() {
