@@ -159,7 +159,7 @@ fun <T> Observable<T>.autoDispose(disposeSource: DisposeSource): Observable<T> {
 }
 
 fun <T> Observable<T>.autoDispose(owner: LifecycleOwner, vararg eventSet: Lifecycle.Event): Observable<T> {
-    return RxJavaPlugins.onAssembly(ObservableAutoDispose(LifeCycleDisposeSource(owner, eventSet.toHashSet()), this))
+    return autoDispose(LifeCycleDisposeSource(owner, eventSet.toHashSet()))
 }
 
 fun <T> Observable<T>.disposeOnDestroy(owner: LifecycleOwner): Observable<T> {
