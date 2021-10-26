@@ -17,7 +17,8 @@ import com.yxf.rxandroidextensions.activity.ActivityResult
 import com.yxf.rxandroidextensions.activity.PermissionResult
 
 import com.yxf.rxandroidextensions.activity.RxAndroidExtensionsFragment
-import com.yxf.rxandroidextensions.lifecycle.ObservableAutoDispose
+import com.yxf.rxandroidextensions.lifecycle.*
+import com.yxf.rxandroidextensions.lifecycle.LifeCycleDisposeSource
 import com.yxf.rxandroidextensions.lifecycle.ObservableLifeCycle
 import io.reactivex.Observable
 import io.reactivex.plugins.RxJavaPlugins
@@ -153,35 +154,24 @@ fun LifecycleOwner.registerLifeCycleEvent(vararg eventArray: Lifecycle.Event, on
     return RxJavaPlugins.onAssembly(ObservableLifeCycle(this, HashSet<Lifecycle.Event>().apply { addAll(eventArray) }, once))
 }
 
+fun <T> Observable<T>.autoDispose(disposeSource: DisposeSource): Observable<T> {
+    return RxJavaPlugins.onAssembly(ObservableAutoDispose<T>(disposeSource, this))
+}
+
+fun <T> Observable<T>.autoDispose(owner: LifecycleOwner, vararg eventSet: Lifecycle.Event): Observable<T> {
+    return RxJavaPlugins.onAssembly(ObservableAutoDispose(LifeCycleDisposeSource(owner, eventSet.toHashSet()), this))
+}
 
 fun <T> Observable<T>.disposeOnDestroy(owner: LifecycleOwner): Observable<T> {
-    return RxJavaPlugins.onAssembly(
-        ObservableAutoDispose<T>(
-            this,
-            owner,
-            disposeOnDestroy = true
-        )
-    )
+    return autoDispose(owner, Lifecycle.Event.ON_DESTROY)
 }
 
 fun <T> Observable<T>.disposeOnPause(owner: LifecycleOwner): Observable<T> {
-    return RxJavaPlugins.onAssembly(
-        ObservableAutoDispose<T>(
-            this,
-            owner,
-            disposeOnPause = true
-        )
-    )
+    return autoDispose(owner, Lifecycle.Event.ON_PAUSE)
 }
 
 fun <T> Observable<T>.disposeOnPauseAndDestroy(owner: LifecycleOwner): Observable<T> {
-    return RxJavaPlugins.onAssembly(
-        ObservableAutoDispose<T>(
-            this,
-            owner,
-            disposeOnPause = true, disposeOnDestroy = true
-        )
-    )
+    return autoDispose(owner, Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_DESTROY)
 }
 
 
