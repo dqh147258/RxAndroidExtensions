@@ -35,6 +35,7 @@ class ObservableAutoDispose<T>(private val disposeSource: DisposeSource, private
         }
 
         override fun onComplete() {
+            disposeSource.removeDisposeObserver(this)
             downstream.onComplete()
         }
 
