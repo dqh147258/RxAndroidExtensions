@@ -5,25 +5,22 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 
 internal class LifeCycleDisposeSource(private val owner: LifecycleOwner, private val eventSet: Set<Lifecycle.Event>): DisposeSource, LifecycleEventObserver {
-    private val observerSet = HashSet<DisposeObserver>()
+
+    private val disposeDelegate = DisposeDelegate()
+
     override fun addDisposeObserver(observer: DisposeObserver) {
         owner.lifecycle.addObserver(this)
-        observerSet.add(observer)
+        disposeDelegate.addDisposeObserver(observer)
     }
 
     override fun removeDisposeObserver(observer: DisposeObserver) {
         owner.lifecycle.removeObserver(this)
-        observerSet.remove(observer)
+        disposeDelegate.removeDisposeObserver(observer)
     }
 
     override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
         if (eventSet.contains(event)) {
-            val iterator = observerSet.iterator()
-            while (iterator.hasNext()) {
-                val observer = iterator.next()
-                iterator.remove()
-                observer.onShouldDispose()
-            }
+            disposeDelegate.clear()
             source.lifecycle.removeObserver(this)
         }
     }
