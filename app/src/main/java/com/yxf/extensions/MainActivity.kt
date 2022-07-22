@@ -6,8 +6,11 @@ import android.content.Intent
 import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.util.Log
+import androidx.core.app.ActivityCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.*
 import com.yxf.rxandroidextensions.*
@@ -40,6 +43,20 @@ class MainActivity : AppCompatActivity() {
             .subscribe {
                 Log.d(TAG, "log subscribe interval value : $it")
             }
+
+        Handler(Looper.getMainLooper()).postDelayed({
+            rxRequestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_NETWORK_STATE))
+                .subscribe {
+                    Log.d(TAG, "get permission result: $it")
+                }
+        }, 5000)
+
+        Handler(Looper.getMainLooper()).postDelayed({
+            rxStartActivityForResult(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                .subscribe {
+                    Log.d(TAG, "get activity result: $it")
+                }
+        }, 10000)
     }
 
     @SuppressLint("CheckResult")
@@ -51,6 +68,16 @@ class MainActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         Log.d(TAG, "activity onPause")
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        Log.d(TAG, "on request permission result")
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        Log.d(TAG, "on activity result")
     }
 
     @SuppressLint("CheckResult")

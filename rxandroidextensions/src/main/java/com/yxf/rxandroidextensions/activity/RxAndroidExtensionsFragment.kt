@@ -6,7 +6,6 @@ import io.reactivex.Observable
 import io.reactivex.subjects.PublishSubject
 import io.reactivex.subjects.Subject
 
-@Deprecated("not used any more")
 internal class RxAndroidExtensionsFragment : Fragment() {
 
 

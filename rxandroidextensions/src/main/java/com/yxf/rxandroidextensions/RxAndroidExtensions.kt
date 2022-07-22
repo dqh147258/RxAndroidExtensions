@@ -10,12 +10,14 @@ import android.provider.Settings
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.app.ActivityOptionsCompat
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import com.yxf.rxandroidextensions.activity.ActivityResult
 import com.yxf.rxandroidextensions.activity.PermissionResult
+import com.yxf.rxandroidextensions.activity.RxAndroidExtensionsFragment
 import com.yxf.rxandroidextensions.lifecycle.*
 import io.reactivex.Observable
 import io.reactivex.plugins.RxJavaPlugins
@@ -50,6 +52,15 @@ private class RxAndroidExtensions {
 private typealias Ex = RxAndroidExtensions
 
 
+private fun getFragment(activity: FragmentActivity): RxAndroidExtensionsFragment {
+    return activity.supportFragmentManager.findFragmentByTag(Ex.TAG)
+        ?.let { return@let (it as RxAndroidExtensionsFragment) }
+        ?: RxAndroidExtensionsFragment().also {
+            activity.supportFragmentManager.beginTransaction().add(it, Ex.TAG)
+                .commitNow()
+        }
+}
+
 internal fun isPermissionGranted(activity: Activity, permission: String) =
     ActivityCompat.checkSelfPermission(
         activity,
@@ -63,12 +74,8 @@ fun FragmentActivity.rxRequestSinglePermission(
     if (isPermissionGranted(this, permission)) {
         return Observable.just(true)
     }
-    return Observable.create {
-        val launcher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { result ->
-            it.onNext(result)
-            it.onComplete()
-        }
-        launcher.launch(permission)
+    return rxRequestPermissions(arrayOf(permission)).map {
+        it.grantResults[0] == PackageManager.PERMISSION_GRANTED
     }
 }
 
@@ -78,22 +85,13 @@ fun FragmentActivity.rxRequestPermissions(
     requestCode: Int = Ex.AUTOMATIC_REQUEST_CODE
 ): Observable<PermissionResult> {
     val code = if (requestCode == Ex.AUTOMATIC_REQUEST_CODE) Ex.requestId() else requestCode
-    return Observable.create {
-        val launcher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { map ->
-            val keys = map.keys.toTypedArray()
-            val values = IntArray(keys.size) { PackageManager.PERMISSION_DENIED }
-            for (i in keys.indices) {
-                val key = keys[i]
-                val result = if (map[key] == true) PackageManager.PERMISSION_GRANTED else PackageManager.PERMISSION_DENIED
-                values[i] = result
-            }
-            it.onNext(PermissionResult(code, keys, values))
-        }
-        launcher.launch(permissions)
-    }
+    ActivityCompat.requestPermissions(this, permissions, code)
+    return registerLifeCycleEvent(Lifecycle.Event.ON_PAUSE)
+        .flatMap { registerLifeCycleEvent(Lifecycle.Event.ON_RESUME) }
+        .map { PermissionResult(code, permissions, permissions.map { ContextCompat.checkSelfPermission(this, it) }.toIntArray()) }
 }
 
-fun FragmentActivity.rxStartActivityForBack(
+fun FragmentActivity.rxStartActivityWaitingForResume(
     intent: Intent,
     options: Bundle? = null,
 ): Observable<Any> {
@@ -108,21 +106,21 @@ fun FragmentActivity.rxStartActivityForBack(
         }
 }
 
+/**
+ * Result Api 存在需要在start之前注册的问题,只能换回Fragment的方式
+ * 如果Fragment的方式存在问题,可以使用FragmentActivity.rxStartActivityWaitingForResume
+ */
 fun FragmentActivity.rxStartActivityForResult(
     intent: Intent,
     options: Bundle? = null,
     requestCode: Int = Ex.AUTOMATIC_REQUEST_CODE
 ): Observable<ActivityResult> {
-    return Observable.create {
-        val launcher = this.registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            val code = if (requestCode == Ex.AUTOMATIC_REQUEST_CODE) Ex.requestId() else requestCode
-            it.onNext(ActivityResult(code, result.resultCode, result.data))
-            it.onComplete()
-        }
-        options?.let {
-            intent.putExtra(ActivityResultContracts.StartActivityForResult.EXTRA_ACTIVITY_OPTIONS_BUNDLE, options)
-        }
-        launcher.launch(intent)
+    val code = if (requestCode == Ex.AUTOMATIC_REQUEST_CODE) Ex.requestId() else requestCode
+    val fragment = getFragment(this)
+    return fragment.run {
+        val observable: Observable<ActivityResult> = getObservable(code)
+        startActivityForResult(intent, code, options)
+        return@run observable
     }
 }
 
