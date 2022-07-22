@@ -7,19 +7,16 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
+import androidx.core.app.ActivityOptionsCompat
 import androidx.fragment.app.Fragment
-
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import com.yxf.rxandroidextensions.activity.ActivityResult
 import com.yxf.rxandroidextensions.activity.PermissionResult
-
-import com.yxf.rxandroidextensions.activity.RxAndroidExtensionsFragment
 import com.yxf.rxandroidextensions.lifecycle.*
-import com.yxf.rxandroidextensions.lifecycle.LifeCycleDisposeSource
-import com.yxf.rxandroidextensions.lifecycle.ObservableLifeCycle
 import io.reactivex.Observable
 import io.reactivex.plugins.RxJavaPlugins
 
@@ -52,14 +49,6 @@ private class RxAndroidExtensions {
 
 private typealias Ex = RxAndroidExtensions
 
-private fun getFragment(activity: FragmentActivity): RxAndroidExtensionsFragment {
-    return activity.supportFragmentManager.findFragmentByTag(Ex.TAG)
-        ?.let { return@let (it as RxAndroidExtensionsFragment) }
-        ?: RxAndroidExtensionsFragment().also {
-            activity.supportFragmentManager.beginTransaction().add(it, Ex.TAG)
-                .commitNow()
-        }
-}
 
 internal fun isPermissionGranted(activity: Activity, permission: String) =
     ActivityCompat.checkSelfPermission(
@@ -74,24 +63,49 @@ fun FragmentActivity.rxRequestSinglePermission(
     if (isPermissionGranted(this, permission)) {
         return Observable.just(true)
     }
-    return rxRequestPermissions(arrayOf(permission), requestCode)
-        .map {
-            return@map it.grantResults[0] == PackageManager.PERMISSION_GRANTED
+    return Observable.create {
+        val launcher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { result ->
+            it.onNext(result)
+            it.onComplete()
         }
+        launcher.launch(permission)
+    }
 }
 
 
 fun FragmentActivity.rxRequestPermissions(
-    permissions: Array<out String>,
+    permissions: Array<String>,
     requestCode: Int = Ex.AUTOMATIC_REQUEST_CODE
 ): Observable<PermissionResult> {
     val code = if (requestCode == Ex.AUTOMATIC_REQUEST_CODE) Ex.requestId() else requestCode
-    val fragment = getFragment(this)
-    return fragment.run {
-        val observable: Observable<PermissionResult> = getObservable(code)
-        fragment.requestPermissions(permissions, code)
-        return@run observable
+    return Observable.create {
+        val launcher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { map ->
+            val keys = map.keys.toTypedArray()
+            val values = IntArray(keys.size) { PackageManager.PERMISSION_DENIED }
+            for (i in keys.indices) {
+                val key = keys[i]
+                val result = if (map[key] == true) PackageManager.PERMISSION_GRANTED else PackageManager.PERMISSION_DENIED
+                values[i] = result
+            }
+            it.onNext(PermissionResult(code, keys, values))
+        }
+        launcher.launch(permissions)
     }
+}
+
+fun FragmentActivity.rxStartActivityForBack(
+    intent: Intent,
+    options: Bundle? = null,
+): Observable<Any> {
+    if (options == null) {
+        startActivity(intent)
+    } else {
+        startActivity(intent, options)
+    }
+    return registerLifeCycleEvent(Lifecycle.Event.ON_PAUSE)
+        .flatMap {
+            registerLifeCycleEvent(Lifecycle.Event.ON_RESUME)
+        }
 }
 
 fun FragmentActivity.rxStartActivityForResult(
@@ -99,12 +113,16 @@ fun FragmentActivity.rxStartActivityForResult(
     options: Bundle? = null,
     requestCode: Int = Ex.AUTOMATIC_REQUEST_CODE
 ): Observable<ActivityResult> {
-    val code = if (requestCode == Ex.AUTOMATIC_REQUEST_CODE) Ex.requestId() else requestCode
-    val fragment = getFragment(this)
-    return fragment.run {
-        val observable: Observable<ActivityResult> = getObservable(code)
-        startActivityForResult(intent, code, options)
-        return@run observable
+    return Observable.create {
+        val launcher = this.registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            val code = if (requestCode == Ex.AUTOMATIC_REQUEST_CODE) Ex.requestId() else requestCode
+            it.onNext(ActivityResult(code, result.resultCode, result.data))
+            it.onComplete()
+        }
+        options?.let {
+            intent.putExtra(ActivityResultContracts.StartActivityForResult.EXTRA_ACTIVITY_OPTIONS_BUNDLE, options)
+        }
+        launcher.launch(intent)
     }
 }
 
@@ -132,7 +150,7 @@ fun Fragment.rxRequestSinglePermission(
 
 
 fun Fragment.rxRequestPermissions(
-    permissions: Array<out String>,
+    permissions: Array<String>,
     requestCode: Int = Ex.AUTOMATIC_REQUEST_CODE
 ): Observable<PermissionResult> {
     return requireActivity().rxRequestPermissions(permissions, requestCode)
