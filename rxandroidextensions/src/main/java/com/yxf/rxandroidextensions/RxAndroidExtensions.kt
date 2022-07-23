@@ -55,6 +55,7 @@ private typealias Ex = RxAndroidExtensions
 
 private val handler by lazy { Handler(Looper.getMainLooper()) }
 
+@Deprecated("should use result api instead")
 private fun getFragment(activity: FragmentActivity): RxAndroidExtensionsFragment {
     return activity.supportFragmentManager.findFragmentByTag(Ex.TAG)
         ?.let { return@let (it as RxAndroidExtensionsFragment) }

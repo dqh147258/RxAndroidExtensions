@@ -37,14 +37,10 @@ internal class ObservableStartContractForResult<I, O>(
 
         private var launcher: ActivityResultLauncher<I>? = null
 
-        val observer = object : LifecycleEventObserver {
-            override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
-                if (Lifecycle.Event.ON_DESTROY == event) {
-                    launcher?.unregister()
-                    source.lifecycle.removeObserver(this)
-                    releaseActivity()
-                    downStream.onError(LifecycleDestroyedException())
-                }
+        val observer = LifecycleEventObserver { _, event ->
+            if (Lifecycle.Event.ON_DESTROY == event) {
+                releaseAll()
+                downStream.onError(LifecycleDestroyedException())
             }
         }
 
@@ -55,15 +51,19 @@ internal class ObservableStartContractForResult<I, O>(
                 val registry = activity!!.activityResultRegistry
                 activity!!.lifecycle.addObserver(observer)
                 val newCallback = ActivityResultCallback<O> {
-                    launcher?.unregister()
-                    activity?.lifecycle?.removeObserver(observer)
-                    releaseActivity()
+                    releaseAll()
                     downStream.onNext(it)
                     downStream.onComplete()
                 }
                 launcher = registry.register(key, contract, newCallback)
                 launcher?.launch(input)
             }
+        }
+
+        private fun releaseAll() {
+            releaseObserver()
+            releaseLauncher()
+            releaseActivity()
         }
 
         private fun releaseActivity() {
@@ -86,9 +86,7 @@ internal class ObservableStartContractForResult<I, O>(
             }
             DisposableHelper.dispose(this)
             runOnMainThread{
-                releaseObserver()
-                releaseLauncher()
-                releaseActivity()
+                releaseAll()
             }
         }
 
