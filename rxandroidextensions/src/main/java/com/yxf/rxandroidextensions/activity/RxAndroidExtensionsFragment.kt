@@ -6,6 +6,7 @@ import io.reactivex.Observable
 import io.reactivex.subjects.PublishSubject
 import io.reactivex.subjects.Subject
 
+@Deprecated("should replace it to result api")
 internal class RxAndroidExtensionsFragment : Fragment() {
 
 

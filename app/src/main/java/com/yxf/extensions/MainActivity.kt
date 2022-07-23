@@ -2,6 +2,7 @@ package com.yxf.extensions
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
@@ -10,19 +11,21 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
-import androidx.core.app.ActivityCompat
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.*
 import com.yxf.rxandroidextensions.*
 import com.yxf.rxandroidextensions.activity.PermissionResult
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.schedulers.Schedulers
 import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
 
     private val TAG = "${MainActivity::class.simpleName}"
+
+
+    private val handler = Handler(Looper.getMainLooper())
 
     @SuppressLint("CheckResult")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,7 +37,7 @@ class MainActivity : AppCompatActivity() {
             requestPermissions(this)
         }
         Observable.timer(3, TimeUnit.SECONDS, AndroidSchedulers.mainThread())
-            .flatMap { registerLifeCycleEvent(Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_DESTROY, once = true) }
+            .flatMap { registerLifecycleEvent(Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_DESTROY, once = true) }
             .subscribe {
                 Log.d(TAG, "get lifecycle event : $it")
             }
@@ -44,19 +47,29 @@ class MainActivity : AppCompatActivity() {
                 Log.d(TAG, "log subscribe interval value : $it")
             }
 
-        Handler(Looper.getMainLooper()).postDelayed({
+        handler.postDelayed({
             rxRequestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_NETWORK_STATE))
                 .subscribe {
                     Log.d(TAG, "get permission result: $it")
                 }
         }, 5000)
 
-        Handler(Looper.getMainLooper()).postDelayed({
+        handler.postDelayed({
             rxStartActivityForResult(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
                 .subscribe {
                     Log.d(TAG, "get activity result: $it")
                 }
         }, 10000)
+        //tryStarActivityForResult()
+    }
+
+    private fun tryStarActivityForResult() {
+        handler.postDelayed({
+            rxStartContractForResult(ActivityResultContracts.StartActivityForResult(), Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                .subscribe {
+                    Log.d(TAG, "get activity result")
+                }
+        }, 3000)
     }
 
     @SuppressLint("CheckResult")
@@ -70,6 +83,17 @@ class MainActivity : AppCompatActivity() {
         Log.d(TAG, "activity onPause")
     }
 
+    override fun onStop() {
+        super.onStop()
+        Log.d(TAG, "activity onStop")
+    }
+
+    override fun onStart() {
+        super.onStart()
+        Log.d(TAG, "activity onStart")
+    }
+
+
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         Log.d(TAG, "on request permission result")
@@ -78,6 +102,33 @@ class MainActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         Log.d(TAG, "on activity result")
+    }
+
+    @SuppressLint("CheckResult")
+    private fun registerActivityResult(activity: FragmentActivity) {
+        activity.rxStartContractForResult(
+            ActivityResultContracts.StartActivityForResult(),
+            Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+        )
+            .subscribe {
+                if (it.resultCode == Activity.RESULT_OK) {
+                    Log.d(TAG, "get activity result successfully")
+                } else {
+                    Log.w(TAG, "get activity result failed")
+                }
+            }
+    }
+
+    private fun registerLifeCycleEvent(activity: FragmentActivity) {
+        activity.registerLifecycleEvent(Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_RESUME, once = false)
+            .subscribe {
+                Log.d(TAG, "current lifecycle is: $it")
+            }
+        activity.registerLifecycleEvent(Lifecycle.Event.ON_PAUSE)
+            .flatMap { activity.registerLifecycleEvent(Lifecycle.Event.ON_RESUME) }
+            .subscribe {
+                Log.d(TAG, "on pause again")
+            }
     }
 
     @SuppressLint("CheckResult")

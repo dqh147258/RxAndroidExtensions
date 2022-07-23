@@ -1,38 +1,57 @@
 package com.yxf.rxandroidextensions.lifecycle
 
+import android.os.Handler
+import android.os.Looper
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
+import com.yxf.rxandroidextensions.runOnMainThread
+import com.yxf.rxandroidextensions.runOnMainThreadSync
 import io.reactivex.Observable
 import io.reactivex.Observer
 import io.reactivex.disposables.Disposable
 import io.reactivex.internal.disposables.DisposableHelper
 import java.util.concurrent.atomic.AtomicReference
 
-internal class ObservableLifeCycle(
-    private val owner: LifecycleOwner,
+internal class ObservableLifecycle(
+    private var owner: LifecycleOwner?,
     private val eventSet: Set<Lifecycle.Event>,
     private val once: Boolean
 ) : Observable<Lifecycle.Event>() {
     override fun subscribeActual(observer: Observer<in Lifecycle.Event>) {
         observer.onSubscribe(LifeCycleObserver(observer, owner, eventSet, once))
+        owner = null
     }
 
 
     private class LifeCycleObserver(
         private val downstream: Observer<in Lifecycle.Event>,
-        private val owner: LifecycleOwner,
+        private var owner: LifecycleOwner?,
         private val eventSet: Set<Lifecycle.Event>,
         private val once: Boolean
     ) : AtomicReference<Disposable>(), Disposable, LifecycleEventObserver {
 
         init {
-            owner.lifecycle.addObserver(this)
+            runOnMainThreadSync{
+                owner!!.lifecycle.addObserver(this)
+            }
         }
 
         override fun dispose() {
-            owner.lifecycle.removeObserver(this)
+            if (isDisposed) {
+                return
+            }
             DisposableHelper.dispose(this)
+            releaseLifeCycleOwner()
+        }
+
+        private fun releaseLifeCycleOwner() {
+            runOnMainThread{
+                if (owner != null) {
+                    owner!!.lifecycle.removeObserver(this)
+                    owner = null
+                }
+            }
         }
 
         override fun isDisposed(): Boolean {
@@ -45,7 +64,7 @@ internal class ObservableLifeCycle(
                 downstream.onNext(event)
             }
             if (shouldComplete(source, exist)) {
-                owner.lifecycle.removeObserver(this)
+                releaseLifeCycleOwner()
                 downstream.onComplete()
             }
         }

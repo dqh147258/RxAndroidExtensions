@@ -4,17 +4,18 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 
-internal class LifeCycleDisposeSource(private val owner: LifecycleOwner, private val eventSet: Set<Lifecycle.Event>): DisposeSource, LifecycleEventObserver {
+internal class LifeCycleDisposeSource(private var owner: LifecycleOwner?, private val eventSet: Set<Lifecycle.Event>) : DisposeSource,
+    LifecycleEventObserver {
 
     private val disposeDelegate = DisposeDelegate()
 
     override fun addDisposeObserver(observer: DisposeObserver) {
-        owner.lifecycle.addObserver(this)
+        owner?.lifecycle?.addObserver(this)
         disposeDelegate.addDisposeObserver(observer)
     }
 
     override fun removeDisposeObserver(observer: DisposeObserver) {
-        owner.lifecycle.removeObserver(this)
+        owner?.lifecycle?.removeObserver(this)
         disposeDelegate.removeDisposeObserver(observer)
     }
 
@@ -22,6 +23,7 @@ internal class LifeCycleDisposeSource(private val owner: LifecycleOwner, private
         if (eventSet.contains(event)) {
             disposeDelegate.clear()
             source.lifecycle.removeObserver(this)
+            owner = null
         }
     }
 }

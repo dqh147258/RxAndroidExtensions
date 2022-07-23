@@ -9,11 +9,16 @@ RxJava Android Extensions
 ### Activity 
 - Request permissions with Observable
 - Request ActivityResult with Observable
+- registerActivityResult with Observable
 - Request install packages from unknown sources with Observable
 
 ### Auto dispose
 - Dispose onDestroy by LifeCycleOwner
 - Dispose onPause by LifeCycleOwner
+- Auto dispose on class which implement DisposeSource
+
+### Register LifeCycle event
+- Register life cycle event from LifeCycleOwner
 
 More features are in developing...
 
@@ -129,6 +134,23 @@ Request install packages from unknown sources
     }
 ```
 
+### Register Activity Result
+```kotlin
+    private fun registerActivityResult(activity: FragmentActivity) {
+    activity.rxStartContractForResult(
+        ActivityResultContracts.StartActivityForResult(),
+        Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+    )
+        .subscribe {
+            if (it.resultCode == Activity.RESULT_OK) {
+                Log.d(TAG, "get activity result successfully")
+            } else {
+                Log.w(TAG, "get activity result failed")
+            }
+        }
+}
+```
+
 ### Automatic dispose
 
 ```kotlin
@@ -156,6 +178,20 @@ Request install packages from unknown sources
     }
 ```
 
+### Register lifecycle event
+```kotlin
+    private fun registerLifeCycleEvent(activity: FragmentActivity) {
+        activity.registerLifecycleEvent(Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_RESUME)
+            .subscribe {
+                Log.d(TAG, "current lifecycle is: $it")
+            }
+        activity.registerLifecycleEvent(Lifecycle.Event.ON_PAUSE, once = true)
+            .flatMap { activity.registerLifecycleEvent(Lifecycle.Event.ON_RESUME, once = true) }
+            .subscribe {
+                Log.d(TAG, "on resume again")
+            }
+    }
+```
 
 
 

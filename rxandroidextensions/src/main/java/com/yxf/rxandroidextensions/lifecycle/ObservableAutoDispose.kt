@@ -1,5 +1,6 @@
 package com.yxf.rxandroidextensions.lifecycle
 
+import com.yxf.rxandroidextensions.runOnMainThreadSync
 import io.reactivex.Observable
 import io.reactivex.ObservableSource
 import io.reactivex.Observer
@@ -16,7 +17,9 @@ class ObservableAutoDispose<T>(private val disposeSource: DisposeSource, private
         private lateinit var upstream: Disposable
 
         init {
-            disposeSource.addDisposeObserver(this)
+            runOnMainThreadSync{
+                disposeSource.addDisposeObserver(this)
+            }
         }
 
 
@@ -35,12 +38,16 @@ class ObservableAutoDispose<T>(private val disposeSource: DisposeSource, private
         }
 
         override fun onComplete() {
-            disposeSource.removeDisposeObserver(this)
+            runOnMainThreadSync{
+                disposeSource.removeDisposeObserver(this)
+            }
             downstream.onComplete()
         }
 
         override fun dispose() {
-            disposeSource.removeDisposeObserver(this)
+            runOnMainThreadSync{
+                disposeSource.removeDisposeObserver(this)
+            }
             if (!upstream.isDisposed) {
                 upstream.dispose()
             }

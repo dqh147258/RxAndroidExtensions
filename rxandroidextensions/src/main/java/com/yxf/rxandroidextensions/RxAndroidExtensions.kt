@@ -6,16 +6,18 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
+import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
-import androidx.core.app.ActivityOptionsCompat
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import com.yxf.rxandroidextensions.activity.ActivityResult
+import com.yxf.rxandroidextensions.activity.ObservableStartContractForResult
 import com.yxf.rxandroidextensions.activity.PermissionResult
 import com.yxf.rxandroidextensions.activity.RxAndroidExtensionsFragment
 import com.yxf.rxandroidextensions.lifecycle.*
@@ -51,6 +53,7 @@ private class RxAndroidExtensions {
 
 private typealias Ex = RxAndroidExtensions
 
+private val handler by lazy { Handler(Looper.getMainLooper()) }
 
 private fun getFragment(activity: FragmentActivity): RxAndroidExtensionsFragment {
     return activity.supportFragmentManager.findFragmentByTag(Ex.TAG)
@@ -67,6 +70,30 @@ internal fun isPermissionGranted(activity: Activity, permission: String) =
         permission
     ) == PackageManager.PERMISSION_GRANTED
 
+internal fun runOnMainThread(runnable: Runnable) {
+    if (Looper.myLooper() != Looper.getMainLooper()) {
+        handler.post(runnable)
+    } else {
+        runnable.run()
+    }
+}
+
+internal fun runOnMainThreadSync(runnable: Runnable) {
+    if (Looper.myLooper() != Looper.getMainLooper()) {
+        val lock = Object()
+        handler.post {
+            try {
+                runnable.run()
+            } finally {
+                lock.notify()
+            }
+        }
+        lock.wait()
+    } else {
+        runnable.run()
+    }
+}
+
 fun FragmentActivity.rxRequestSinglePermission(
     permission: String,
     requestCode: Int = Ex.AUTOMATIC_REQUEST_CODE
@@ -74,9 +101,7 @@ fun FragmentActivity.rxRequestSinglePermission(
     if (isPermissionGranted(this, permission)) {
         return Observable.just(true)
     }
-    return rxRequestPermissions(arrayOf(permission)).map {
-        it.grantResults[0] == PackageManager.PERMISSION_GRANTED
-    }
+    return rxStartContractForResult(ActivityResultContracts.RequestPermission(), permission)
 }
 
 
@@ -85,10 +110,15 @@ fun FragmentActivity.rxRequestPermissions(
     requestCode: Int = Ex.AUTOMATIC_REQUEST_CODE
 ): Observable<PermissionResult> {
     val code = if (requestCode == Ex.AUTOMATIC_REQUEST_CODE) Ex.requestId() else requestCode
-    ActivityCompat.requestPermissions(this, permissions, code)
-    return registerLifeCycleEvent(Lifecycle.Event.ON_PAUSE)
-        .flatMap { registerLifeCycleEvent(Lifecycle.Event.ON_RESUME) }
-        .map { PermissionResult(code, permissions, permissions.map { ContextCompat.checkSelfPermission(this, it) }.toIntArray()) }
+    return rxStartContractForResult(ActivityResultContracts.RequestMultiplePermissions(), permissions)
+        .map { m ->
+            PermissionResult(
+                code,
+                permissions,
+                permissions.map { p -> if (m[p] == true) PackageManager.PERMISSION_GRANTED else PackageManager.PERMISSION_DENIED }
+                    .toIntArray()
+            )
+        }
 }
 
 fun FragmentActivity.rxStartActivityWaitingForResume(
@@ -100,17 +130,14 @@ fun FragmentActivity.rxStartActivityWaitingForResume(
     } else {
         startActivity(intent, options)
     }
-    return registerLifeCycleEvent(Lifecycle.Event.ON_PAUSE)
+    return registerLifecycleEvent(Lifecycle.Event.ON_PAUSE)
         .flatMap {
-            registerLifeCycleEvent(Lifecycle.Event.ON_RESUME)
+            registerLifecycleEvent(Lifecycle.Event.ON_RESUME)
         }
 }
 
-/**
- * Result Api 存在需要在start之前注册的问题,只能换回Fragment的方式
- * 如果Fragment的方式存在问题,可以使用FragmentActivity.rxStartActivityWaitingForResume
- */
-fun FragmentActivity.rxStartActivityForResult(
+@Deprecated("use rxStartActivityForResult instead")
+fun FragmentActivity.rxStartActivityForResultByFragment(
     intent: Intent,
     options: Bundle? = null,
     requestCode: Int = Ex.AUTOMATIC_REQUEST_CODE
@@ -123,6 +150,27 @@ fun FragmentActivity.rxStartActivityForResult(
         return@run observable
     }
 }
+
+fun FragmentActivity.rxStartActivityForResult(
+    intent: Intent,
+    options: Bundle? = null,
+    requestCode: Int = Ex.AUTOMATIC_REQUEST_CODE
+): Observable<ActivityResult> {
+    val code = if (requestCode == Ex.AUTOMATIC_REQUEST_CODE) Ex.requestId() else requestCode
+    return rxStartContractForResult(ActivityResultContracts.StartActivityForResult(), intent.apply {
+        options?.let {
+            putExtra(ActivityResultContracts.StartActivityForResult.EXTRA_ACTIVITY_OPTIONS_BUNDLE, options)
+        }
+    }).map {
+        ActivityResult(code, it.resultCode, it.data)
+    }
+}
+
+
+fun <I, O> FragmentActivity.rxStartContractForResult(contract: ActivityResultContract<I, O>, input: I): Observable<O> {
+    return RxJavaPlugins.onAssembly(ObservableStartContractForResult(this, contract, input))
+}
+
 
 fun FragmentActivity.rxRequestInstallPackagesPermission(): Observable<Boolean> {
     val uri = Uri.parse("package:$packageName")
@@ -166,8 +214,8 @@ fun Fragment.rxRequestInstallPackagesPermission(): Observable<Boolean> {
     return requireActivity().rxRequestInstallPackagesPermission()
 }
 
-fun LifecycleOwner.registerLifeCycleEvent(vararg eventArray: Lifecycle.Event, once: Boolean = true): Observable<Lifecycle.Event> {
-    return RxJavaPlugins.onAssembly(ObservableLifeCycle(this, HashSet<Lifecycle.Event>().apply { addAll(eventArray) }, once))
+fun LifecycleOwner.registerLifecycleEvent(vararg eventArray: Lifecycle.Event, once: Boolean = true): Observable<Lifecycle.Event> {
+    return RxJavaPlugins.onAssembly(ObservableLifecycle(this, HashSet<Lifecycle.Event>().apply { addAll(eventArray) }, once))
 }
 
 fun <T> Observable<T>.autoDispose(disposeSource: DisposeSource): Observable<T> {
