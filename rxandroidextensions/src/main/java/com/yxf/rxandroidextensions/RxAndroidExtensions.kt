@@ -92,7 +92,11 @@ internal fun runOnMainThreadSync(runnable: Runnable) {
             }
         }
         synchronized(lock) {
-            lock.wait()
+            try {
+                lock.wait()
+            } catch (e: InterruptedException) {
+                e.printStackTrace()
+            }
         }
     } else {
         runnable.run()
