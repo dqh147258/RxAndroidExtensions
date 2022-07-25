@@ -86,10 +86,14 @@ internal fun runOnMainThreadSync(runnable: Runnable) {
             try {
                 runnable.run()
             } finally {
-                lock.notify()
+                synchronized(lock) {
+                    lock.notify()
+                }
             }
         }
-        lock.wait()
+        synchronized(lock) {
+            lock.wait()
+        }
     } else {
         runnable.run()
     }

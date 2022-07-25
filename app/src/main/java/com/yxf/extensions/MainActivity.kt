@@ -14,10 +14,13 @@ import android.util.Log
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.*
+import com.yxf.extensions.databinding.ActivityMainBinding
 import com.yxf.rxandroidextensions.*
 import com.yxf.rxandroidextensions.activity.PermissionResult
+import com.yxf.rxandroidextensions.activity.startContractForResult
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
+import leakcanary.LeakCanary
 import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
@@ -31,8 +34,17 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.d(TAG, "activity onCreate")
-        setContentView(R.layout.activity_main)
-        rxRequestInstallPackagesPermission().subscribe {
+        val vb = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(vb.root)
+        vb.startTestActivity.setOnClickListener {
+            startActivity(Intent(this, RxJavaTestActivity::class.java))
+        }
+        vb.checkLeak.setOnClickListener {
+            LeakCanary.dumpHeap()
+        }
+
+
+        /*rxRequestInstallPackagesPermission().subscribe {
             Log.d(TAG, "request packages permission result : $it")
             requestPermissions(this)
         }
@@ -59,7 +71,7 @@ class MainActivity : AppCompatActivity() {
                 .subscribe {
                     Log.d(TAG, "get activity result: $it")
                 }
-        }, 10000)
+        }, 10000)*/
         //tryStarActivityForResult()
     }
 
@@ -117,6 +129,19 @@ class MainActivity : AppCompatActivity() {
                     Log.w(TAG, "get activity result failed")
                 }
             }
+    }
+
+    private fun startContractForResult(activity: FragmentActivity) {
+        activity.startContractForResult(
+            ActivityResultContracts.StartActivityForResult(),
+            Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+        ) {
+            if (it.resultCode == Activity.RESULT_OK) {
+                Log.d(TAG, "get activity result successfully")
+            } else {
+                Log.w(TAG, "get activity result failed")
+            }
+        }
     }
 
     private fun registerLifeCycleEvent(activity: FragmentActivity) {
