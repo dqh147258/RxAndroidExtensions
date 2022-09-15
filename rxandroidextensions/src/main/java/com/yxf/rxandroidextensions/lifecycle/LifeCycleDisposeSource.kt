@@ -20,7 +20,7 @@ internal class LifeCycleDisposeSource(private var owner: LifecycleOwner?, privat
     }
 
     override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
-        if (eventSet.contains(event)) {
+        if (eventSet.contains(event) || event == Lifecycle.Event.ON_DESTROY) {
             disposeDelegate.clear()
             source.lifecycle.removeObserver(this)
             owner = null
