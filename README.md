@@ -40,7 +40,7 @@ add dependencies in your project like this
 
 ```groovy
     dependencies {
-	        implementation 'com.github.dqh147258:RxAndroidExtensions:1.0.2'
+	        implementation 'com.github.dqh147258:RxAndroidExtensions:1.1.9'
 	}
 ```
 
